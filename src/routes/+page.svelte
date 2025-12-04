@@ -44,8 +44,8 @@
 				const lobbyId = await createLobby({ turnTime, phrasesPerPlayer });
 				goto(`${base}/lobby?id=${lobbyId}`);
 			} else {
-				// Offline mode - generate a random ID
-				const lobbyId = crypto.randomUUID().slice(0, 8);
+				// Offline mode - generate a random ID (crypto.randomUUID requires secure context)
+				const lobbyId = Math.random().toString(36).slice(2, 10);
 				goto(`${base}/lobby?id=${lobbyId}&turnTime=${turnTime}&phrases=${phrasesPerPlayer}&offline=1`);
 			}
 		} catch (e) {
