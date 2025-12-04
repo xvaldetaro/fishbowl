@@ -159,9 +159,7 @@
 				{/if}
 			</div>
 
-			<div class="spacer"></div>
-
-			<div class="btn-row">
+			<div class="btn-row game-btns">
 				<button class="secondary" onclick={handleSkipTurn}>Skip Turn</button>
 				<button class="primary" onclick={handleStart}>Start! ↵</button>
 			</div>
@@ -190,9 +188,7 @@
 				{/if}
 			</div>
 
-			<div class="spacer"></div>
-
-			<div class="btn-row">
+			<div class="btn-row game-btns">
 				<button
 					class="secondary {animating === 'skipped' ? 'btn-pop' : ''}"
 					onclick={handleSkip}
@@ -237,9 +233,7 @@
 				{/if}
 			</div>
 
-			<div class="spacer"></div>
-
-			<button class="primary" onclick={handleConfirmTurn}>Confirm</button>
+			<button class="primary game-btn" onclick={handleConfirmTurn}>Confirm</button>
 
 		{:else if $game.phase === 'segmentEnd'}
 			<h1>
@@ -271,21 +265,27 @@
 						<h2>It's a Tie!</h2>
 					{/if}
 				</div>
-				<div class="spacer"></div>
-				<button class="primary" onclick={handleEndGame}>Back to Home</button>
+				<button class="primary game-btn" onclick={handleEndGame}>Back to Home</button>
 			{:else}
 				<div class="card">
 					<h2>Next: {SEGMENT_NAMES[$game.segment + 1]}</h2>
 					<p class="info">{SEGMENT_INSTRUCTIONS[$game.segment + 1]}</p>
 				</div>
-				<div class="spacer"></div>
-				<button class="primary" onclick={handleNextSegment}>Continue</button>
+				<button class="primary game-btn" onclick={handleNextSegment}>Continue</button>
 			{/if}
 		{/if}
 	</div>
 {/if}
 
 <style>
+	.game-btn,
+	.game-btns button {
+		padding: 1.25rem 1.5rem;
+		font-size: 1.25rem;
+		font-weight: 700;
+		margin-top: 1.5rem;
+	}
+
 	.flash-overlay {
 		position: fixed;
 		inset: 0;
