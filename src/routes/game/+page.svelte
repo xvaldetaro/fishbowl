@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
+	import { derived } from 'svelte/store';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { game } from '$lib/game';
@@ -8,28 +10,41 @@
 	let confirmedGuesses = $state(new Set<string>());
 
 	const currentPlayer = game.currentPlayer;
+	const phase = derived(game, ($g) => $g?.phase);
+	const guessedThisTurn = derived(game, ($g) => $g?.guessedThisTurn ?? []);
 
+	// Redirect if no game state
 	$effect(() => {
 		if (!$game) {
 			goto(`${base}/`);
 		}
-		return () => {
-			if (timerInterval) clearInterval(timerInterval);
-		};
 	});
 
+	// Manage timer based on phase - only react to phase changes
 	$effect(() => {
-		if ($game?.phase === 'turn' && !timerInterval) {
+		if ($phase === 'turn') {
 			timerInterval = setInterval(() => game.tick(), 1000);
-		} else if ($game?.phase !== 'turn' && timerInterval) {
-			clearInterval(timerInterval);
-			timerInterval = null;
+			return () => {
+				if (timerInterval) {
+					clearInterval(timerInterval);
+					timerInterval = null;
+				}
+			};
 		}
 	});
 
+	// Initialize confirmed guesses when entering post-turn
 	$effect(() => {
-		if ($game?.phase === 'postTurn') {
-			confirmedGuesses = new Set($game.guessedThisTurn);
+		if ($phase === 'postTurn') {
+			confirmedGuesses = new Set($guessedThisTurn);
+		}
+	});
+
+	// Cleanup on component destroy
+	onDestroy(() => {
+		if (timerInterval) {
+			clearInterval(timerInterval);
+			timerInterval = null;
 		}
 	});
 
