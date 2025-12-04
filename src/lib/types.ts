@@ -40,4 +40,5 @@ export interface GameState {
 	guessedThisTurn: string[];
 	skippedThisTurn: string[];
 	timeLeft: number;
+	carryoverTime: number | null; // remaining time to carry to next segment
 }

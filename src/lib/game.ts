@@ -34,7 +34,8 @@ function createGameStore() {
 			currentPhrase: null,
 			guessedThisTurn: [],
 			skippedThisTurn: [],
-			timeLeft: config.turnTime
+			timeLeft: config.turnTime,
+			carryoverTime: null
 		});
 	}
 
@@ -50,10 +51,12 @@ function createGameStore() {
 			if (!s) return s;
 			const remainingPhrases = [...s.remainingPhrases];
 			const currentPhrase = remainingPhrases.length > 0 ? remainingPhrases.shift()! : null;
+			const timeLeft = s.carryoverTime ?? s.config.turnTime;
 			return {
 				...s,
 				phase: 'turn' as const,
-				timeLeft: s.config.turnTime,
+				timeLeft,
+				carryoverTime: null,
 				guessedThisTurn: [],
 				skippedThisTurn: [],
 				currentPhrase,
@@ -131,7 +134,8 @@ function createGameStore() {
 					remainingPhrases,
 					phase: 'segmentEnd' as const,
 					guessedThisTurn: [],
-					skippedThisTurn: []
+					skippedThisTurn: [],
+					carryoverTime: s.timeLeft > 5 ? s.timeLeft : null
 				};
 			}
 
@@ -167,6 +171,22 @@ function createGameStore() {
 		state.update((s) => {
 			if (!s || s.segment >= 2) return s;
 			const allPhrases = s.players.flatMap((p) => p.phrases);
+
+			// If no carryover time, advance to next player
+			if (!s.carryoverTime) {
+				const currentPlayerIndex: [number, number] = [...s.currentPlayerIndex] as [number, number];
+				currentPlayerIndex[s.currentTeam]++;
+				return {
+					...s,
+					segment: (s.segment + 1) as Segment,
+					remainingPhrases: shuffle(allPhrases),
+					phase: 'preTurn' as const,
+					currentPlayerIndex,
+					currentTeam: s.currentTeam === 0 ? 1 : 0
+				};
+			}
+
+			// Carryover time exists - same player continues
 			return {
 				...s,
 				segment: (s.segment + 1) as Segment,

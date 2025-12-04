@@ -91,7 +91,27 @@
 		if (timeLeft <= 15) return 'warning';
 		return '';
 	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if ($phase === 'preTurn' && event.key === 'Enter') {
+			event.preventDefault();
+			handleStart();
+			return;
+		}
+
+		if ($phase !== 'turn' || !$game?.currentPhrase) return;
+
+		if (event.key === 'ArrowRight') {
+			event.preventDefault();
+			handleGuessed();
+		} else if (event.key === 'ArrowLeft') {
+			event.preventDefault();
+			handleSkip();
+		}
+	}
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 {#if $game}
 	<div class="page">
@@ -123,14 +143,18 @@
 				<p style="margin-top: 0.5rem">
 					<strong>{$game.remainingPhrases.length}</strong> phrases remaining
 				</p>
-				<p class="info">{$game.config.turnTime} seconds per turn</p>
+				{#if $game.carryoverTime}
+					<p class="info" style="color: var(--primary)">{$game.carryoverTime} seconds remaining from last round</p>
+				{:else}
+					<p class="info">{$game.config.turnTime} seconds per turn</p>
+				{/if}
 			</div>
 
 			<div class="spacer"></div>
 
 			<div class="btn-row">
 				<button class="secondary" onclick={handleSkipTurn}>Skip Turn</button>
-				<button class="primary" onclick={handleStart}>Start!</button>
+				<button class="primary" onclick={handleStart}>Start! ↵</button>
 			</div>
 
 		{:else if $game.phase === 'turn'}
@@ -155,10 +179,10 @@
 
 			<div class="btn-row">
 				<button class="secondary" onclick={handleSkip} disabled={!$game.currentPhrase}>
-					Skip
+					← Skip
 				</button>
 				<button class="primary" onclick={handleGuessed} disabled={!$game.currentPhrase}>
-					Guessed!
+					Guessed! →
 				</button>
 			</div>
 
