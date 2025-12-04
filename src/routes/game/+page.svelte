@@ -73,6 +73,10 @@
 		}, 250);
 	}
 
+	function handleEndTurn() {
+		game.endTurn();
+	}
+
 	function toggleGuess(phrase: string) {
 		if (confirmedGuesses.has(phrase)) {
 			confirmedGuesses.delete(phrase);
@@ -206,6 +210,8 @@
 					Guessed! →
 				</button>
 			</div>
+
+			<button class="end-turn-btn" onclick={handleEndTurn}>End Turn</button>
 
 		{:else if $game.phase === 'postTurn'}
 			<h1>Turn Over!</h1>
@@ -357,5 +363,18 @@
 		100% {
 			transform: scale(1);
 		}
+	}
+
+	.end-turn-btn {
+		margin-top: 1.5rem;
+		padding: 0.4rem 0.75rem;
+		font-size: 0.75rem;
+		opacity: 0.6;
+		background: var(--surface);
+		border: 1px solid var(--secondary);
+	}
+
+	.end-turn-btn:hover {
+		opacity: 1;
 	}
 </style>

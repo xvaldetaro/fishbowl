@@ -197,7 +197,10 @@
 
 	<button
 		class="primary"
-		onclick={() => (showStartDialog = true)}
+		onclick={() => {
+			randomizeTeams();
+			showStartDialog = true;
+		}}
 		disabled={players.length < 2}
 	>
 		Start Game
