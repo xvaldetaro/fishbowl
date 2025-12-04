@@ -8,6 +8,7 @@
 
 	let timerInterval: ReturnType<typeof setInterval> | null = null;
 	let confirmedGuesses = $state(new Set<string>());
+	let animating = $state<'guessed' | 'skipped' | null>(null);
 
 	const currentPlayer = game.currentPlayer;
 	const phase = derived(game, ($g) => $g?.phase);
@@ -57,11 +58,19 @@
 	}
 
 	function handleGuessed() {
-		game.guessed();
+		animating = 'guessed';
+		setTimeout(() => {
+			game.guessed();
+			animating = null;
+		}, 250);
 	}
 
 	function handleSkip() {
-		game.skip();
+		animating = 'skipped';
+		setTimeout(() => {
+			game.skip();
+			animating = null;
+		}, 250);
 	}
 
 	function toggleGuess(phrase: string) {
@@ -158,6 +167,10 @@
 			</div>
 
 		{:else if $game.phase === 'turn'}
+			{#if animating}
+				<div class="flash-overlay {animating}"></div>
+			{/if}
+
 			<div class="segment-badge">{SEGMENT_NAMES[$game.segment]}</div>
 
 			<div class="current-player">
@@ -169,19 +182,29 @@
 
 			<div class="timer {getTimerClass($game.timeLeft)}">{$game.timeLeft}</div>
 
-			{#if $game.currentPhrase}
-				<div class="phrase">{$game.currentPhrase}</div>
-			{:else}
-				<div class="phrase info">No more phrases!</div>
-			{/if}
+			<div class="phrase-container">
+				{#if $game.currentPhrase}
+					<div class="phrase {animating ? 'flip-out' : ''}">{$game.currentPhrase}</div>
+				{:else}
+					<div class="phrase info">No more phrases!</div>
+				{/if}
+			</div>
 
 			<div class="spacer"></div>
 
 			<div class="btn-row">
-				<button class="secondary" onclick={handleSkip} disabled={!$game.currentPhrase}>
+				<button
+					class="secondary {animating === 'skipped' ? 'btn-pop' : ''}"
+					onclick={handleSkip}
+					disabled={!$game.currentPhrase || animating !== null}
+				>
 					← Skip
 				</button>
-				<button class="primary" onclick={handleGuessed} disabled={!$game.currentPhrase}>
+				<button
+					class="primary {animating === 'guessed' ? 'btn-pop' : ''}"
+					onclick={handleGuessed}
+					disabled={!$game.currentPhrase || animating !== null}
+				>
 					Guessed! →
 				</button>
 			</div>
@@ -261,3 +284,68 @@
 		{/if}
 	</div>
 {/if}
+
+<style>
+	.flash-overlay {
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		z-index: 100;
+		animation: flash 250ms ease-out forwards;
+	}
+
+	.flash-overlay.guessed {
+		background: var(--team1);
+	}
+
+	.flash-overlay.skipped {
+		background: var(--primary);
+	}
+
+	@keyframes flash {
+		0% {
+			opacity: 0;
+		}
+		30% {
+			opacity: 0.5;
+		}
+		100% {
+			opacity: 0;
+		}
+	}
+
+	.phrase-container {
+		perspective: 600px;
+	}
+
+	.phrase.flip-out {
+		animation: flipOut 250ms ease-in forwards;
+	}
+
+	@keyframes flipOut {
+		0% {
+			transform: rotateX(0deg);
+			opacity: 1;
+		}
+		100% {
+			transform: rotateX(-90deg);
+			opacity: 0;
+		}
+	}
+
+	.btn-pop {
+		animation: pop 200ms ease-out;
+	}
+
+	@keyframes pop {
+		0% {
+			transform: scale(1);
+		}
+		50% {
+			transform: scale(1.15);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
+</style>
