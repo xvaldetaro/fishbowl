@@ -1,13 +1,52 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const STORAGE_KEY = 'supabase_creds';
 
-export const supabase = supabaseUrl && supabaseAnonKey
-	? createClient(supabaseUrl, supabaseAnonKey)
-	: null;
+let supabaseInstance: SupabaseClient | null = null;
+
+export interface SupabaseCredentials {
+	url: string;
+	anonKey: string;
+}
+
+export function getCredentials(): SupabaseCredentials | null {
+	if (typeof window === 'undefined') return null;
+	const stored = localStorage.getItem(STORAGE_KEY);
+	if (!stored) return null;
+	try {
+		return JSON.parse(stored);
+	} catch {
+		return null;
+	}
+}
+
+export function setCredentials(url: string, anonKey: string) {
+	localStorage.setItem(STORAGE_KEY, JSON.stringify({ url, anonKey }));
+	supabaseInstance = createClient(url, anonKey);
+}
+
+export function clearCredentials() {
+	localStorage.removeItem(STORAGE_KEY);
+	supabaseInstance = null;
+}
+
+export function getSupabase(): SupabaseClient | null {
+	if (supabaseInstance) return supabaseInstance;
+
+	const creds = getCredentials();
+	if (!creds) return null;
+
+	supabaseInstance = createClient(creds.url, creds.anonKey);
+	return supabaseInstance;
+}
+
+// Create a temporary client from provided credentials (for join page)
+export function createTemporaryClient(url: string, anonKey: string): SupabaseClient {
+	return createClient(url, anonKey);
+}
 
 export async function createLobby(config: { turnTime: number; phrasesPerPlayer: number }) {
+	const supabase = getSupabase();
 	if (!supabase) throw new Error('Supabase not configured');
 
 	const { data, error } = await supabase
@@ -24,6 +63,7 @@ export async function createLobby(config: { turnTime: number; phrasesPerPlayer: 
 }
 
 export async function getLobby(lobbyId: string) {
+	const supabase = getSupabase();
 	if (!supabase) throw new Error('Supabase not configured');
 
 	const { data, error } = await supabase
@@ -41,6 +81,7 @@ export async function getLobby(lobbyId: string) {
 }
 
 export async function submitPlayer(lobbyId: string, name: string, phrases: string[]) {
+	const supabase = getSupabase();
 	if (!supabase) throw new Error('Supabase not configured');
 
 	const { error } = await supabase
@@ -55,6 +96,7 @@ export async function submitPlayer(lobbyId: string, name: string, phrases: strin
 }
 
 export async function getSubmissions(lobbyId: string) {
+	const supabase = getSupabase();
 	if (!supabase) throw new Error('Supabase not configured');
 
 	const { data, error } = await supabase
@@ -64,4 +106,12 @@ export async function getSubmissions(lobbyId: string) {
 
 	if (error) throw error;
 	return data as { player_name: string; phrases: string[] }[];
+}
+
+export async function deleteLobby(lobbyId: string) {
+	const supabase = getSupabase();
+	if (!supabase) return;
+
+	await supabase.from('submissions').delete().eq('lobby_id', lobbyId);
+	await supabase.from('lobbies').delete().eq('id', lobbyId);
 }

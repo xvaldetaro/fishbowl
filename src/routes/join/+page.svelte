@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { getLobby, submitPlayer, supabase } from '$lib/supabase';
+	import { createTemporaryClient } from '$lib/supabase';
+	import type { SupabaseClient } from '@supabase/supabase-js';
 
 	const params = $derived($page.url.searchParams);
 	const lobbyId = $derived(params.get('lobby') || '');
+	const supabaseUrl = $derived(params.get('url') || '');
+	const supabaseKey = $derived(params.get('key') || '');
 
 	let playerName = $state('');
 	let phrases = $state<string[]>([]);
@@ -13,23 +16,43 @@
 	let error = $state('');
 	let phrasesPerPlayer = $state(3);
 
+	// Client created once and cached
+	let supabase: SupabaseClient | null = null;
+	let initialized = false;
+
 	$effect(() => {
-		if (lobbyId && supabase) {
-			loadLobby();
+		// Read reactive deps
+		const url = supabaseUrl;
+		const key = supabaseKey;
+		const lobby = lobbyId;
+
+		// Only initialize once
+		if (initialized) return;
+		initialized = true;
+
+		if (url && key && lobby) {
+			supabase = createTemporaryClient(url, key);
+			loadLobby(lobby);
 		} else {
 			loading = false;
-			if (!supabase) {
-				error = 'Supabase not configured';
-			}
+			error = 'Invalid join link (missing credentials)';
 		}
 	});
 
-	async function loadLobby() {
+	async function loadLobby(lobby: string) {
+		if (!supabase) return;
 		loading = true;
 		try {
-			const lobby = await getLobby(lobbyId);
-			phrasesPerPlayer = lobby.phrasesPerPlayer;
-			phrases = Array(lobby.phrasesPerPlayer).fill('');
+			const { data, error: fetchError } = await supabase
+				.from('lobbies')
+				.select('*')
+				.eq('id', lobby)
+				.single();
+
+			if (fetchError) throw fetchError;
+
+			phrasesPerPlayer = data.config_phrases_per_player;
+			phrases = Array(phrasesPerPlayer).fill('');
 		} catch (e) {
 			error = 'Lobby not found';
 			console.error(e);
@@ -39,15 +62,19 @@
 	}
 
 	async function handleSubmit() {
-		if (!playerName.trim() || phrases.some((p) => !p.trim())) return;
+		if (!supabase || !playerName.trim() || phrases.some((p) => !p.trim())) return;
 		submitting = true;
 		error = '';
 		try {
-			await submitPlayer(
-				lobbyId,
-				playerName.trim(),
-				phrases.map((p) => p.trim())
-			);
+			const { error: submitError } = await supabase
+				.from('submissions')
+				.insert({
+					lobby_id: lobbyId,
+					player_name: playerName.trim(),
+					phrases: phrases.map((p) => p.trim())
+				});
+
+			if (submitError) throw submitError;
 			submitted = true;
 		} catch (e) {
 			error = 'Failed to submit';
@@ -63,7 +90,7 @@
 </script>
 
 <div class="page">
-	<h1>🐟 Join Game</h1>
+	<h1>Join Game</h1>
 
 	{#if loading}
 		<p class="info">Loading...</p>

@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { getLobby, getSubmissions, supabase } from '$lib/supabase';
+	import { getLobby, getSubmissions, getSupabase, getCredentials } from '$lib/supabase';
 	import { game } from '$lib/game';
 	import type { Player } from '$lib/types';
 
@@ -23,6 +23,9 @@
 	let newPhrases = $state<string[]>([]);
 
 	let config = $state({ turnTime: 60, phrasesPerPlayer: 3 });
+
+	const supabase = $derived(getSupabase());
+	const isOnline = $derived(!isOffline && !!supabase);
 
 	$effect(() => {
 		if (isOffline) {
@@ -49,11 +52,22 @@
 		loading = true;
 		try {
 			const submissions = await getSubmissions(lobbyId);
-			players = submissions.map((s) => ({
-				name: s.player_name,
-				phrases: s.phrases,
-				team: 0
-			}));
+			const remoteNames = new Set(submissions.map((s) => s.player_name));
+
+			// Keep local players not in Supabase
+			const localOnly = players.filter((p) => !remoteNames.has(p.name));
+
+			// Add/update from Supabase (preserve team if player existed)
+			const fromSupabase = submissions.map((s) => {
+				const existing = players.find((p) => p.name === s.player_name);
+				return {
+					name: s.player_name,
+					phrases: s.phrases,
+					team: existing?.team ?? 0
+				};
+			});
+
+			players = [...localOnly, ...fromSupabase];
 		} catch (e) {
 			console.error('Failed to refresh', e);
 		} finally {
@@ -99,25 +113,48 @@
 		goto(`${base}/game`);
 	}
 
-	const shareUrl = $derived(
-		typeof window !== 'undefined'
-			? `${window.location.origin}${base}/join?lobby=${lobbyId}`
-			: ''
-	);
+	// Build share URL with embedded credentials
+	const shareUrl = $derived.by(() => {
+		if (typeof window === 'undefined') return '';
+		const creds = getCredentials();
+		if (!creds) return '';
+		const params = new URLSearchParams({
+			lobby: lobbyId,
+			url: creds.url,
+			key: creds.anonKey
+		});
+		return `${window.location.origin}${base}/join?${params.toString()}`;
+	});
 
-	function copyLink() {
-		navigator.clipboard.writeText(shareUrl);
+	let copied = $state(false);
+
+	async function copyLink() {
+		try {
+			await navigator.clipboard.writeText(shareUrl);
+			copied = true;
+			setTimeout(() => (copied = false), 2000);
+		} catch {
+			// Fallback: select the text in the link box
+			const linkBox = document.querySelector('.link-box') as HTMLElement;
+			if (linkBox) {
+				const range = document.createRange();
+				range.selectNodeContents(linkBox);
+				const selection = window.getSelection();
+				selection?.removeAllRanges();
+				selection?.addRange(range);
+			}
+		}
 	}
 </script>
 
 <div class="page">
 	<h1>Lobby</h1>
 
-	{#if !isOffline && supabase}
+	{#if isOnline}
 		<div class="card">
 			<h2>Share Link</h2>
 			<div class="link-box">{shareUrl}</div>
-			<button class="secondary" onclick={copyLink}>Copy Link</button>
+			<button class="secondary" onclick={copyLink}>{copied ? 'Copied!' : 'Copy Link'}</button>
 		</div>
 	{/if}
 
@@ -150,7 +187,7 @@
 
 		<div class="btn-row" style="margin-top: 0.5rem">
 			<button class="secondary" onclick={() => (showAddPlayer = true)}>Add Player</button>
-			{#if !isOffline && supabase}
+			{#if isOnline}
 				<button class="secondary" onclick={refreshPlayers} disabled={loading}>
 					{loading ? '...' : 'Refresh'}
 				</button>
@@ -257,6 +294,16 @@
 
 	.modal h2 {
 		margin-bottom: 1rem;
+	}
+
+	.link-box {
+		word-break: break-all;
+		font-size: 0.85rem;
+		padding: 0.5rem;
+		background: var(--bg);
+		border-radius: 6px;
+		margin-bottom: 0.5rem;
+		user-select: all;
 	}
 
 	.player-list select {

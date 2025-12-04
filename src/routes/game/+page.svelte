@@ -138,10 +138,12 @@
 			<div class="score-display">
 				<div class="team">
 					<div class="info">{$game.teamNames[0]}</div>
+					<div class="team-players">{$game.players.filter(p => p.team === 0).map(p => p.name).join(', ')}</div>
 					<div class="score">{$game.scores[0]}</div>
 				</div>
 				<div class="team">
 					<div class="info">{$game.teamNames[1]}</div>
+					<div class="team-players">{$game.players.filter(p => p.team === 1).map(p => p.name).join(', ')}</div>
 					<div class="score">{$game.scores[1]}</div>
 				</div>
 			</div>
@@ -247,10 +249,12 @@
 			<div class="score-display" style="margin: 2rem 0">
 				<div class="team">
 					<div class="info">{$game.teamNames[0]}</div>
+					<div class="team-players">{$game.players.filter(p => p.team === 0).map(p => p.name).join(', ')}</div>
 					<div class="score">{$game.scores[0]}</div>
 				</div>
 				<div class="team">
 					<div class="info">{$game.teamNames[1]}</div>
+					<div class="team-players">{$game.players.filter(p => p.team === 1).map(p => p.name).join(', ')}</div>
 					<div class="score">{$game.scores[1]}</div>
 				</div>
 			</div>
@@ -278,6 +282,12 @@
 {/if}
 
 <style>
+	.team-players {
+		font-size: 0.75rem;
+		opacity: 0.7;
+		margin-top: 0.25rem;
+	}
+
 	.game-btn,
 	.game-btns button {
 		padding: 1.25rem 1.5rem;
